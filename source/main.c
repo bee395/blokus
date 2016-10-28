@@ -408,7 +408,7 @@ int spelAfgelopen(){
 		}
 	}
 	if(getalletje >= 2){
-		gameStatus = 1;
+		gameStatus = 2;
 		return 1;
 	}
 	return 0;
@@ -499,10 +499,12 @@ int main()
 		if (kHeld & KEY_START) {
 			break;
 		}
-		if(gameStatus==1){
-					if(kDown & KEY_Y){
+		if(kDown & KEY_Y){
 			prepairGame();
 		}
+		
+		if(gameStatus==1){
+
 			if(playerStatus[playerActive] == 0){
 		if((kHeld & KEY_CPAD_UP)||(kDown & KEY_CPAD_UP)){
 			if(kDown){
@@ -594,7 +596,7 @@ int main()
 			opgegeven[playerActive]=1;
 			nextPlayer();
 		}
-			}else{//	-----AI-----
+			}else{//-----AI-----
 				
 			u64 timeInSeconds = osGetTime() / 1000;
 			srand (timeInSeconds);
@@ -736,31 +738,6 @@ int main()
 				}
 			}
 			if(spelAfgelopen()==1){
-				int hoogsteScore = -100;
-				int beste = 0;
-				int gelijk = 0;
-				for(int k = 0 ; k <= totalPlayers; k++){
-					if(getFinalScore()[k]>hoogsteScore){
-						hoogsteScore = getFinalScore()[k];
-						beste = k;
-					}else if(getFinalScore()[k]>=hoogsteScore){
-						beste = k;
-						gelijk = 1;
-					}
-				}
-			
-				char str[80];
-				
-				if(gelijk==0){
-					sprintf(str, "Speler %d heeft gewonnen!", beste);
-					int length = sftd_get_text_width(font, 20, str);
-					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(0, 0, 0, 255), 20, "Speler %d heeft gewonnen!", beste);
-				}else{
-					sprintf(str, "gelijkspel!");
-					int length = sftd_get_text_width(font, 20, str);
-					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(0, 0, 0, 255), 20, "gelijkspel");
-				}
-				sftd_draw_textf(font, 0, 150, RGBA8(0, 0, 0, 255), 20, "lol");
 			}
 		}else if (gameStatus==0){
 			
@@ -780,7 +757,8 @@ int main()
 				if(tick%20==19&&x!=titlePlayer[i][0]){
 					if(x>titlePlayer[i][0]){
 						titlePlayer[i][0]++;
-					}else{
+						}
+						else{
 						titlePlayer[i][0]--;
 					}
 				}
@@ -861,6 +839,31 @@ int main()
 
 			//stukje, rotaion, flip, x, y,
 			tick++;
+		}else if(gameStatus == 2){
+				int hoogsteScore = -100;
+				int beste = 0;
+				int gelijk = 0;
+				for(int k = 0 ; k <= totalPlayers; k++){
+					if(getFinalScore()[k]>hoogsteScore){
+						hoogsteScore = getFinalScore()[k];
+						beste = k;
+					}else if(getFinalScore()[k]>=hoogsteScore){
+						beste = k;
+						gelijk = 1;
+					}
+				}
+			
+				char str[80];
+				
+				if(gelijk==0){
+					sprintf(str, "Speler %d heeft gewonnen!", beste);
+					int length = sftd_get_text_width(font, 20, str);
+					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(255, 255, 255, 255), 20, "Speler %d heeft gewonnen!", beste);
+				}else{
+					sprintf(str, "gelijkspel!");
+					int length = sftd_get_text_width(font, 20, str);
+					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(255, 255, 255, 255), 20, "gelijkspel");
+				}
 		}
 		sf2d_end_frame();
 		
