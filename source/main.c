@@ -69,8 +69,6 @@ int rotation = 0;
 int flip = 0;
 int opgegeven[4]={0};
 
-
-
 int frames = 0;
 
 u64 lastTime;
@@ -210,7 +208,7 @@ void prepairGame(){
 	//field[400] = {0};
 	x_as = 0;
 	y_as = 0;
-	turn = 1;
+	turn = 0;
 	stukje = 0;
 	flip = 1;
 	rotation = 0;
@@ -226,16 +224,8 @@ void prepairGame(){
 	}
 	
 	playerActive = 0;
-	playerStatus[0] = 0;
+	playerStatus[0] = 1;
 	playerStatus[1] = 1;
-	field[26] = 1;
-	field[81]=1;
-	field[301]=1;
-	field[360]=1;
-	field[385]=1;
-	field[350]=1;
-	field[392]=1;
-	
 }
 
 //---------------------------------------------------------------------------------
@@ -268,9 +258,33 @@ int * getFinalScore(){
 }
 
 //---------------------------------------------------------------------------------
+int calculateScore(int fieldLocal[400]){
+//---------------------------------------------------------------------------------
+
+	int length = sizeof(vormen) / sizeof(int);
+	int totalPoints = 0;
+	char breedte[32];
+	
+	for(int i = 0; i<length; i++){
+		copy_string(breedte, vormen[i]);
+		
+		for(int k = 0; k < strlen(breedte)-1; k++){
+			totalPoints++;
+		}
+	}
+	
+	for(int i = 0; i<400; i++){
+		if(field[i] == playerActive+1){
+			totalPoints--;
+		}
+	}
+	
+	return totalPoints;
+}
+
+//---------------------------------------------------------------------------------
 void nextPlayer(){
 //---------------------------------------------------------------------------------
-	
 	int instap = playerActive;
 
 	do{
@@ -353,6 +367,53 @@ void rotate(char breedte[32], int flip, int rotation){
 	}
 	copy_string(breedte, buffer);
 }
+
+void doMove(int playerActive, int stukje, int rotation, int flip, int x_as, int y_as){
+	char breedte[32];
+	copy_string(breedte, vormen[stukje]);
+	rotate(breedte, flip, rotation);
+	
+	int cool = strlen(breedte)-1;		//totalelengte
+	int coolp = (breedte[cool] - '0');	//breedte
+  //if(legalMove(breedte, i%20, i/20)==0){
+	if(legalMove(breedte, x_as, y_as)==0){
+		for(int i=0; i < cool; i++){
+			if(breedte[i]=='1'){
+				field[(y_as+i/coolp)*20+x_as+i%coolp] = playerActive+1;
+			}
+		}
+	used[playerActive][stukje]=1;
+	neergelegt[playerActive][turn] = stukje + '0';
+	nextPlayer();		
+	}
+}
+
+int spelAfgelopen(){
+	//int scores[4];
+	//sprintf(scores, getFinalScore());
+	int getalletje = 0;
+	for(int i = 0; i <= totalPlayers; i++){
+		if(opgegeven[i]==1){
+			getalletje++;
+		}else{
+			for(int k = 0; k < 20; k++){
+				if(used[i][k]==0){
+					break;
+				}else{
+					if(k==19){
+						getalletje++;
+					}
+				}
+			}
+		}
+	}
+	if(getalletje >= 2){
+		gameStatus = 1;
+		return 1;
+	}
+	return 0;
+}
+
 
 //---------------------------------------------------------------------------------
 int legalMove(char breedte[32], int x_as, int y_as){//112
@@ -439,6 +500,10 @@ int main()
 			break;
 		}
 		if(gameStatus==1){
+					if(kDown & KEY_Y){
+			prepairGame();
+		}
+			if(playerStatus[playerActive] == 0){
 		if((kHeld & KEY_CPAD_UP)||(kDown & KEY_CPAD_UP)){
 			if(kDown){
 				if(y_as>0){
@@ -522,39 +587,111 @@ int main()
 		}
 		
 		if(kDown & KEY_A){
-			char breedte[32];
-			//char text[1000];
-			//sprintf(text, "		%d	%d	%d	%d	%d	%s", playerActive, stukje, x_as, y_as, legalMove(breedte, x_as, y_as), breedte);
-			//print(text);
-			copy_string(breedte, vormen[stukje]);
-			rotate(breedte, flip, rotation);
-			
-			int cool = strlen(breedte)-1;		//totalelengte
-			int coolp = (breedte[cool] - '0');	//breedte
-			if(legalMove(breedte, x_as, y_as)==0){
-				for(int i=0; i < cool; i++){
-					if(breedte[i]=='1'){
-						field[(y_as+i/coolp)*20+x_as+i%coolp]=playerActive+1;
-					}
-				}
-			used[playerActive][stukje]=1;
-			neergelegt[playerActive][turn] = stukje + '0';
-			nextPlayer();		
-			}
+			doMove(playerActive, stukje, rotation, flip, x_as, y_as);
 		}
 			
-		if(kDown & KEY_Y){
-			prepairGame();
-		}
 		if(kDown & KEY_X){
 			opgegeven[playerActive]=1;
 			nextPlayer();
 		}
+			}else{//	-----AI-----
+				
+			u64 timeInSeconds = osGetTime() / 1000;
+			srand (timeInSeconds);
+			int score[4]={0};
+			char besteStukje[32];
+			int test = 0;
+			
+			for(int i = 0; i<400; i++){
+				for(int p = 0; p < 20; p++){
+					if(used[playerActive][p]!=1){
+						char breedte[32];
+										
+						copy_string(breedte, vormen[p]);
+						int cool = strlen(breedte)-1;
+						int coolp = (breedte[cool] - '0');
+						rotate(breedte, 1, 0);
+					
+						if(legalMove(breedte, i%20, i/20)==0){
+							int Scorenumber = i;
+							
+							int fieldLocal[400];
+							for(int lol = 0; lol< 400; lol++){
+								fieldLocal[lol] = field[lol];
+							}
+							
+							for(int k=0; k < cool; k++){
+								if(breedte[k]=='1'){
+									fieldLocal[(i/20+k/coolp)*20+i%20+k%coolp] = playerActive+1;
+								}
+							}
+							Scorenumber = calculateScore(fieldLocal);
+							// && rand()%10==0
+							//if(Scorenumber>score[1] && rand()%5 >=1){
+							if(Scorenumber > score[3]){
+
+								//highestMove = countPossibleMoves(fieldLocal);
+								//highestLeak = countLeaks(fieldLocal);
+								
+								score[0]=i;
+								test=Scorenumber;
+								score[1]=p;
+							//	score[2]=(int)(breedte - '0');
+								copy_string(besteStukje, breedte);
+								score[3]=calculateScore(fieldLocal);
+							}
+						}
+					}
+				}
+			}
+			if(test==0){
+				opgegeven[playerActive]=1;
+				nextPlayer();
+			}else{
+				doMove(playerActive, score[1], 0, 1, score[0]%20, score[0]/20);
+			}
+			
+			//int coolkp = rand() % sizeof list;
+			//int number = score[1];
+			//x_as = score[0]%20;
+			//y_as = score[0]/20;
+			
+			//char breedte[32];
+			//char source[32];
+			//sprintf(source, "%d", besteStukje);
+			//copy_string(breedte, besteStukje);
+			//copy_string(breedte, source);
+			//rotate(breedte, 1, 0);
+			//int cool = strlen(breedte)-1;
+			//int coolp = (breedte[cool] - '0');
+			
+			//AI still can't rotate or flip a piece
+							
+			//used[playerActive][number]=1;
+			//rotate(breedte, 0, 0);
+			//print(text);
+			//print(breedte);
+			
+			
+			//nextPlayer();
+			
+			/*for(int stop = 0;stop <20;stop++){
+				if(used[playerActive][stop]==0 && countPossibleMoves(field)>0){// && countPossibleMoves(field)>0
+					break;
+				}
+				else if(stop==19){
+					prepGame();
+				}
+			}*/
+			}
+		
 		//offset3d = CONFIG_3D_SLIDERSTATE * 30.0f;
-		}else{
+		}else if (gameStatus==0){
 			if(kDown & KEY_A){
 				gameStatus = 1;
 			}
+		}else if (gameStatus == 2 ){
+			
 		}
 		sf2d_start_frame(GFX_BOTTOM, GFX_LEFT);
 			sftd_draw_textf(font, 10, 10, RGBA8(0, 255, 255, 255), 15, "FPS %f", sf2d_get_fps());
@@ -570,8 +707,8 @@ int main()
 			sftd_draw_textf(font, 10, 140, RGBA8(255, 255, 255, 255), 15, "neergelegt: %d", neergelegt[0][turn]- '0');
 			for(int i = 0; i<2; i++){
 				int b = titleCurrent[2];
-				sftd_draw_textf(font, 10, 155+20*i, RGBA8(255, 255, 255, 255), 15, "titlePlayer: %d", titlePlayer[2][i]);
-				sftd_draw_textf(font, 160, 155+20*i, RGBA8(255, 255, 255, 255), 15, "titlePlayer: %d", titleScreen[2][b][i+1]);
+				sftd_draw_textf(font, 10, 155+20*i, RGBA8(255, 255, 255, 255), 15, "opgegeven0: %d", opgegeven[i]);
+				sftd_draw_textf(font, 160, 155+20*i, RGBA8(255, 255, 255, 255), 15, "opgegeven1: %d", opgegeven[i]);
 				
 				//titleScreen[i][b][1];
 			}
@@ -598,28 +735,34 @@ int main()
 					sf2d_draw_texture_part(tex3, center+i%coolp*12+x_as*12, i/coolp*12+y_as*12, playerActive*12+12, 0, 12, 12);
 				}
 			}
-			int teller = 0;
-			for(int p = 0; p <= totalPlayers; p++){
-				if(opgegeven[p]==1){
-					teller++;
-				}
-			}
-			if(teller==totalPlayers+1||turn==20){
+			if(spelAfgelopen()==1){
 				int hoogsteScore = -100;
 				int beste = 0;
+				int gelijk = 0;
 				for(int k = 0 ; k <= totalPlayers; k++){
 					if(getFinalScore()[k]>hoogsteScore){
 						hoogsteScore = getFinalScore()[k];
 						beste = k;
+					}else if(getFinalScore()[k]>=hoogsteScore){
+						beste = k;
+						gelijk = 1;
 					}
 				}
 			
 				char str[80];
-				sprintf(str, "Speler %d heeft gewonnen!", beste);
-				int length = sftd_get_text_width(font, 20, str);
-				sftd_draw_textf(font, (400-length)/2, 110, RGBA8(0, 0, 0, 255), 20, "Speler %d heeft gewonnen!", beste);
+				
+				if(gelijk==0){
+					sprintf(str, "Speler %d heeft gewonnen!", beste);
+					int length = sftd_get_text_width(font, 20, str);
+					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(0, 0, 0, 255), 20, "Speler %d heeft gewonnen!", beste);
+				}else{
+					sprintf(str, "gelijkspel!");
+					int length = sftd_get_text_width(font, 20, str);
+					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(0, 0, 0, 255), 20, "gelijkspel");
+				}
+				sftd_draw_textf(font, 0, 150, RGBA8(0, 0, 0, 255), 20, "lol");
 			}
-		}else{
+		}else if (gameStatus==0){
 			
 			for(int i = 0; i < (400/12)*(240/12); i++){
 				sf2d_draw_texture_part(tex3, i%(400/12)*12, i/(400/12)*12, startscherm[i]*12, 0, 12, 12);
@@ -697,7 +840,6 @@ int main()
 					int cool = strlen(breedte)-1;
 					int coolp = (breedte[cool] - '0');
 
-			
 					for(int k=0; k < cool; k++){//piece
 						if(breedte[k]=='1'){
 							//sf2d_draw_texture_part(tex3, i%coolp*12+x_as*12, i/coolp*12+y_as*12, 6*12+12, 0, 12, 12);
