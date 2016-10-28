@@ -63,7 +63,7 @@ char currentPiece[32];
 char neergelegt[4][21];
 int x_as;
 int y_as;
-int turn;
+int turn = 1;
 int stukje;
 int rotation = 0;
 int flip = 0;
@@ -212,6 +212,7 @@ void prepairGame(){
 	stukje = 0;
 	flip = 1;
 	rotation = 0;
+	gameStatus = 1;
 
 	for(int i = 0; i<400; i++){
 		field[i]=0;
@@ -222,9 +223,11 @@ void prepairGame(){
 		}
 		opgegeven[p]=0;
 	}
+	field[0]=1;
+	field[399]=2;
 	
 	playerActive = 0;
-	playerStatus[0] = 1;
+	playerStatus[0] = 0;
 	playerStatus[1] = 1;
 }
 
@@ -375,8 +378,10 @@ void doMove(int playerActive, int stukje, int rotation, int flip, int x_as, int 
 	
 	int cool = strlen(breedte)-1;		//totalelengte
 	int coolp = (breedte[cool] - '0');	//breedte
+	//TODO: ale stukje worden nu op maar 1 plek geplaatst omdat hij niet meer kan controleren of de zet aan de regels voldoet
+	//	legalMove werkt ook niet meer.
   //if(legalMove(breedte, i%20, i/20)==0){
-	if(legalMove(breedte, x_as, y_as)==0){
+	//if(legalMove(breedte, x_as, y_as)==0){
 		for(int i=0; i < cool; i++){
 			if(breedte[i]=='1'){
 				field[(y_as+i/coolp)*20+x_as+i%coolp] = playerActive+1;
@@ -385,7 +390,7 @@ void doMove(int playerActive, int stukje, int rotation, int flip, int x_as, int 
 	used[playerActive][stukje]=1;
 	neergelegt[playerActive][turn] = stukje + '0';
 	nextPlayer();		
-	}
+	//}
 }
 
 int spelAfgelopen(){
@@ -413,7 +418,6 @@ int spelAfgelopen(){
 	}
 	return 0;
 }
-
 
 //---------------------------------------------------------------------------------
 int legalMove(char breedte[32], int x_as, int y_as){//112
@@ -468,6 +472,54 @@ int legalMove(char breedte[32], int x_as, int y_as){//112
 		return 0;
 	}
 	return 1;
+}
+
+int * aiMove(int playerActive){
+	static int array[4]={0};
+	//u64 timeInSeconds = osGetTime() / 1000;
+	//srand (timeInSeconds);
+	int score[5]={0};
+			
+	for(int i = 0; i<400; i++){
+		for(int p = 0; p < 20; p++){
+			if(used[playerActive][p]!=1){
+				for(int k = 0; k < 1; k ++){					
+					char breedte[32];	
+					copy_string(breedte, vormen[p]);
+					int cool = strlen(breedte)-1;
+					int coolp = (breedte[cool] - '0');
+					rotate(breedte, k%2, k/2);//string, flip, rotation
+			
+					if(legalMove(breedte, i%20, i/20)==0){
+						int Scorenumber = i;
+					
+						int fieldLocal[400];
+						for(int lol = 0; lol< 400; lol++){
+							fieldLocal[lol] = field[lol];
+						}
+							
+						for(int k=0; k < cool; k++){
+							if(breedte[k]=='1'){
+								fieldLocal[(i/20+k/coolp)*20+i%20+k%coolp] = playerActive+1;
+							}
+						}
+						Scorenumber = calculateScore(fieldLocal);
+						if(Scorenumber > score[3]){
+							//highestMove = countPossibleMoves(fieldLocal);
+						//highestLeak = countLeaks(fieldLocal);
+						
+							score[0]=i%20;	//x
+							score[1]=i/20;	//y
+							score[2]=p;		//vormpje
+							score[3]=k/2;	//rotation
+							score[4]=k%2;	//flip
+						}	
+					}
+				}
+			}
+		}
+	}
+	return score;
 }
 
 int main()
@@ -597,62 +649,19 @@ int main()
 			nextPlayer();
 		}
 			}else{//-----AI-----
-				
-			u64 timeInSeconds = osGetTime() / 1000;
-			srand (timeInSeconds);
-			int score[4]={0};
-			char besteStukje[32];
-			int test = 0;
-			
-			for(int i = 0; i<400; i++){
-				for(int p = 0; p < 20; p++){
-					if(used[playerActive][p]!=1){
-						char breedte[32];
-										
-						copy_string(breedte, vormen[p]);
-						int cool = strlen(breedte)-1;
-						int coolp = (breedte[cool] - '0');
-						rotate(breedte, 1, 0);
-					
-						if(legalMove(breedte, i%20, i/20)==0){
-							int Scorenumber = i;
-							
-							int fieldLocal[400];
-							for(int lol = 0; lol< 400; lol++){
-								fieldLocal[lol] = field[lol];
-							}
-							
-							for(int k=0; k < cool; k++){
-								if(breedte[k]=='1'){
-									fieldLocal[(i/20+k/coolp)*20+i%20+k%coolp] = playerActive+1;
-								}
-							}
-							Scorenumber = calculateScore(fieldLocal);
-							// && rand()%10==0
-							//if(Scorenumber>score[1] && rand()%5 >=1){
-							if(Scorenumber > score[3]){
-
-								//highestMove = countPossibleMoves(fieldLocal);
-								//highestLeak = countLeaks(fieldLocal);
-								
-								score[0]=i;
-								test=Scorenumber;
-								score[1]=p;
-							//	score[2]=(int)(breedte - '0');
-								copy_string(besteStukje, breedte);
-								score[3]=calculateScore(fieldLocal);
-							}
-						}
-					}
-				}
-			}
-			if(test==0){
+			int * array = aiMove(playerActive);
+			if(
+			array[0]==0 &&
+			array[1]==0 &&
+			array[2]==0 &&
+			array[3]==0 &&
+			array[4]==100
+			){
 				opgegeven[playerActive]=1;
 				nextPlayer();
 			}else{
-				doMove(playerActive, score[1], 0, 1, score[0]%20, score[0]/20);
-			}
-			
+				doMove(playerActive, array[2], array[3], array[4], array[0], array[1]);//playerActive, stukje, rotation, flip, x, y
+			}			
 			//int coolkp = rand() % sizeof list;
 			//int number = score[1];
 			//x_as = score[0]%20;
@@ -855,14 +864,14 @@ int main()
 			
 				char str[80];
 				
-				if(gelijk==0){
+				if(gelijk==10){
 					sprintf(str, "Speler %d heeft gewonnen!", beste);
 					int length = sftd_get_text_width(font, 20, str);
 					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(255, 255, 255, 255), 20, "Speler %d heeft gewonnen!", beste);
 				}else{
 					sprintf(str, "gelijkspel!");
 					int length = sftd_get_text_width(font, 20, str);
-					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(255, 255, 255, 255), 20, "gelijkspel");
+					sftd_draw_textf(font, (400-length)/2, 110, RGBA8(255, 255, 255, 255), 20, "gelijkspel %d %d");
 				}
 		}
 		sf2d_end_frame();
@@ -878,4 +887,3 @@ int main()
 	sf2d_fini();
 	return 0;
 }
-//testje enz.
